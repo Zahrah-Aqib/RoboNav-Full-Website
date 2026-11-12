@@ -1,61 +1,80 @@
 /**
- * API service module.
- *
- * The real search algorithms (A*, Greedy Best-First) are implemented in
- * Python and exposed by a FastAPI backend. This module is the single
- * integration point: when the backend is available, flip
- * `BACKEND_URL` to its base URL and the UI keeps working unchanged.
- *
- * Expected endpoints (documented in /docs):
- *   POST /api/run      — run ONE algorithm on a map, returns frames + stats
- *   POST /api/compare  — run BOTH algorithms, returns paired results
- *
- * Until the backend exists, every call falls back to
- * `MOCK_*` fixtures in `src/lib/mockData.ts`, which are clearly labelled
- * demonstration data — not real measurements.
+ * Client for the real Python FastAPI backend.
+ * No invented paths, mock metrics, or silent fallback values.
  */
-import type { GridState, Heuristic } from './grid';
-import type { RunResult } from './demoRun';
-import { generateDemoRun } from './demoRun';
-import { MOCK_COMPARE_RESPONSE } from './mockData';
+import type { GridState, Heuristic, Pos } from './grid';
 
-// TODO(setup): point at the FastAPI service, e.g. 'https://api.robonav.local'
-export const BACKEND_URL: string | null = null;
+export const BACKEND_URL =
+  import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
 
-export interface RunRequest {
-  map: {
-    rows: number;
-    cols: number;
-    /** Flat list of obstacle cell indices (row * cols + col). */
-    obstacles: number[];
-    start: { row: number; col: number };
-    goal: { row: number; col: number };
-  };
-  algorithm: 'astar' | 'greedy';
-  heuristic: Heuristic;
-  movement: '4dir' | '8dir';
+export interface RunFrame {
+  explored: Pos;
+  frontier: Pos[];
+  frontierDetails?: Array<Pos & { g: number; h: number; f: number }>;
+  g?: number;
+  h?: number;
+  f?: number;
 }
 
-export interface CompareRequest {
-  map: RunRequest['map'];
-  algorithms: ['astar', 'greedy'];
-  heuristic: Heuristic;
-  movement: '4dir' | '8dir';
+export interface RunResult {
+  frames: RunFrame[];
+  path: Pos[];
+  status: 'found' | 'no_path';
+  stats: {
+    pathCost: number | null;
+    nodesExpanded: number;
+    nodesTested: number;
+    maxFrontier: number;
+    executionTimeMs: number;
+  };
 }
 
 export interface CompareResponse {
   astar: RunResult;
   greedy: RunResult;
-  /** Server-reported timing measured around the algorithm call. */
   timings: { astar: number; greedy: number };
 }
 
-export function gridToApiMap(grid: GridState): RunRequest['map'] {
+export interface ExperimentRow {
+  id: number;
+  mapName: string;
+  rows: number;
+  cols: number;
+  density: number;
+  seed: number;
+  algorithm: 'astar' | 'greedy';
+  heuristic: Heuristic;
+  status: 'found' | 'no_path';
+  pathCost: number | null;
+  nodesExpanded: number;
+  nodesTested: number;
+  maxFrontier: number;
+  executionTimeMs: number;
+}
+
+export interface ExperimentSummary {
+  size: number;
+  density: number;
+  algorithm: 'astar' | 'greedy';
+  runs: number;
+  successes: number;
+  avgPathCost: number | null;
+  avgNodesExpanded: number;
+  avgMaxFrontier: number;
+  avgExecutionTimeMs: number;
+}
+
+export interface ExperimentResponse {
+  rows: ExperimentRow[];
+  summary: ExperimentSummary[];
+}
+
+export function gridToApiMap(grid: GridState) {
   return {
     rows: grid.rows,
     cols: grid.cols,
-    obstacles: Array.from(grid.walls).map((k) => {
-      const [r, c] = k.split(':').map(Number);
+    obstacles: Array.from(grid.walls).map((entry) => {
+      const [r, c] = entry.split(':').map(Number);
       return r * grid.cols + c;
     }),
     start: grid.start,
@@ -64,54 +83,58 @@ export function gridToApiMap(grid: GridState): RunRequest['map'] {
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${BACKEND_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  return res.json() as Promise<T>;
+  let response: Response;
+  try {
+    response = await fetch(BACKEND_URL + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error(
+      'Cannot reach the Python backend. Start it on port 8000 and reload this page.'
+    );
+  }
+  if (!response.ok) {
+    let message = 'Request failed (' + response.status + ')';
+    try {
+      const error = await response.json() as { detail?: string };
+      if (typeof error.detail === 'string') message = error.detail;
+    } catch {
+      // Keep the HTTP error when the server has no JSON body.
+    }
+    throw new Error(message);
+  }
+  return response.json() as Promise<T>;
 }
 
-/**
- * Run one algorithm. Falls back to the local demo generator while the
- * Python backend is not connected.
- */
-export async function apiRun(
+export function apiRun(
   grid: GridState,
   algorithm: 'astar' | 'greedy',
-  heuristic: Heuristic
+  heuristic: Heuristic,
 ): Promise<RunResult> {
-  if (BACKEND_URL) {
-    return post<RunResult>('/api/run', {
-      map: gridToApiMap(grid),
-      algorithm,
-      heuristic,
-      movement: '4dir',
-    } satisfies RunRequest);
-  }
-  // Fallback: deterministic demo animation, labelled as demo data in the UI.
-  return generateDemoRun(grid, {
-    wandering: algorithm === 'greedy' ? 3.2 : 0.35,
-    seedLabel: `${algorithm}:${heuristic}:${grid.rows}x${grid.cols}:${grid.walls.size}:${grid.start.row}:${grid.goal.row}`,
+  return post('/api/run', {
+    map: gridToApiMap(grid),
+    algorithm,
+    heuristic,
+    movement: '4dir',
   });
 }
 
-/**
- * Run both algorithms side by side. Falls back to mock fixtures while
- * the backend is not connected.
- */
-export async function apiCompare(
-  grid: GridState,
-  heuristic: Heuristic
-): Promise<CompareResponse> {
-  if (BACKEND_URL) {
-    return post<CompareResponse>('/api/compare', {
-      map: gridToApiMap(grid),
-      algorithms: ['astar', 'greedy'],
-      heuristic,
-      movement: '4dir',
-    } satisfies CompareRequest);
-  }
-  return MOCK_COMPARE_RESPONSE(grid, heuristic);
+export function apiCompare(grid: GridState, heuristic: Heuristic): Promise<CompareResponse> {
+  return post('/api/compare', {
+    map: gridToApiMap(grid),
+    algorithms: ['astar', 'greedy'],
+    heuristic,
+    movement: '4dir',
+  });
+}
+
+export function apiExperiments(
+  gridSizes: number[],
+  densities: number[],
+  seeds: number[],
+  heuristic: Heuristic,
+): Promise<ExperimentResponse> {
+  return post('/api/experiments', { gridSizes, densities, seeds, heuristic });
 }

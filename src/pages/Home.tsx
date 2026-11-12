@@ -159,7 +159,7 @@ export default function Home() {
             {
               step: '02',
               title: 'Run both planners',
-              text: 'The Python FastAPI service executes each search and streams back every expanded cell.',
+              text: 'The Python FastAPI service executes each search and returns every expanded cell.',
             },
             {
               step: '03',
@@ -181,8 +181,7 @@ export default function Home() {
         <Reveal>
           <p className="mt-6 text-sm text-slate-500 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse-slow" />
-            Demonstration notice: until the Python backend is connected, the site shows
-            clearly-labelled demo data, not real algorithm runs.
+            Start the Python backend to run the real search algorithms and measure performance.
           </p>
         </Reveal>
       </section>

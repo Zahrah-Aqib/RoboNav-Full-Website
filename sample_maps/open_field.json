@@ -1,0 +1,7 @@
+{
+  "rows": 5,
+  "cols": 5,
+  "obstacles": [],
+  "start": {"row": 2, "col": 0},
+  "goal": {"row": 2, "col": 4}
+}

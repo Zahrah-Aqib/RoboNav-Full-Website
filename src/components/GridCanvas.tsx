@@ -1,7 +1,7 @@
 import { CSSProperties, useCallback, useRef } from 'react';
 import { GridState, Pos, key, samePos, CellRole } from '@/lib/grid';
 
-export const CELL_COLORS: Record<CellRole, string> = {
+const CELL_COLORS: Record<CellRole, string> = {
   empty: 'rgba(255,255,255,0.04)',
   obstacle: '#1f3154',
   start: '#22c55e',

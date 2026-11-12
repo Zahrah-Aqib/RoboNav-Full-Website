@@ -19,8 +19,6 @@ import {
   GridState,
   PaintTool,
   Pos,
-  CellRole,
-  createGrid,
   randomizeWalls,
   resizeGrid,
   key,
@@ -29,7 +27,8 @@ import {
 } from '@/lib/grid';
 import { PRESETS, presetById } from '@/lib/presets';
 import { apiRun } from '@/lib/api';
-import { RunResult } from '@/lib/demoRun';
+import type { RunResult } from '@/lib/api';
+import { overlayFor } from '@/lib/frontier';
 import { usePlayback } from '@/lib/usePlayback';
 
 const DEFAULT_ROWS = 12;
@@ -51,25 +50,15 @@ export default function GridSimulator() {
   const playback = usePlayback(totalFrames, 5);
 
   // Overlay derived from playback position.
-  const overlay = useMemo(() => {
-    const m = new Map<string, CellRole>();
-    if (!run) return m;
-    for (let i = 0; i < playback.frame; i++) {
-      const f = run.frames[i];
-      if (f) m.set(key(f.explored), 'explored');
-    }
-    if (playback.state === 'done' && run.path.length > 0) {
-      run.path.forEach((p) => {
-        if (!samePos(p, grid.start) && !samePos(p, grid.goal)) m.set(key(p), 'path');
-      });
-    }
-    return m;
-  }, [run, playback.frame, playback.state, grid.start, grid.goal]);
+  const overlay = useMemo(
+    () => overlayFor(run, playback.frame, playback.state === 'done', grid.start, grid.goal),
+    [run, playback.frame, playback.state, grid.start, grid.goal]
+  );
 
-  const markDirty = () => {
+  const markDirty = useCallback(() => {
     setRun(null);
     playback.reset();
-  };
+  }, [playback.reset]);
 
   const paint = useCallback(
     (p: Pos) => {
@@ -89,9 +78,9 @@ export default function GridSimulator() {
         else if (tool === 'erase') walls.delete(k);
         return { ...g, walls };
       });
-      if (tool !== 'start' && tool !== 'goal') markDirty();
+      markDirty();
     },
-    [tool]
+    [tool, markDirty]
   );
 
   const applyPreset = (id: string) => {
@@ -130,10 +119,10 @@ export default function GridSimulator() {
       const result = await apiRun(grid, algorithm, heuristic);
       setRun(result);
       if (result.path.length === 0) {
-        setApiNotice('The demo run could not reach the goal on this map. Try clearing some obstacles.');
+        setApiNotice('No path exists on this grid. Change the obstacles or move the start/goal.');
       }
-    } catch {
-      setApiNotice('Something went wrong while running the planner. Please try again.');
+    } catch (error) {
+      setApiNotice(error instanceof Error ? error.message : 'Could not run the planner.');
     } finally {
       setRunning(false);
     }
@@ -380,10 +369,24 @@ export default function GridSimulator() {
                 </div>
               </div>
             )}
+            {run && playback.frame > 0 && (
+              <div className="rounded-lg border border-navy-600/60 p-3 space-y-2">
+                <p className="text-xs font-semibold text-cyan-soft">Frontier list at current step</p>
+                <p className="text-xs text-slate-400">Coordinates and g(n), h(n), f(n) from Python.</p>
+                <div className="max-h-48 overflow-y-auto text-[11px] font-mono text-slate-300">
+                  {(run.frames[Math.max(0, playback.frame - 1)]?.frontierDetails ?? []).map((node, i) => (
+                    <p key={node.row + ':' + node.col} className="py-1 border-b border-navy-700/40">
+                      {i + 1}. ({node.row},{node.col}) g={node.g} h={node.h} f={node.f}
+                    </p>
+                  ))}
+                  {!run.frames[Math.max(0, playback.frame - 1)]?.frontierDetails?.length &&
+                    <p>Frontier empty.</p>}
+                </div>
+              </div>
+            )}
             {run && (
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Demo demonstration data — not a real algorithm run. Connect the Python backend
-                to replace it (see Documentation).
+                Live results from the Python search algorithm. Timing excludes browser animation.
               </p>
             )}
           </div>

@@ -14,26 +14,26 @@ const values = [
   },
   {
     icon: Bot,
-    title: 'Honest about demo data',
-    text: 'Until the Python backend is connected, every number is labelled as a placeholder. We would rather show an honest notice than invented results.',
+    title: 'Real results, not guesses',
+    text: 'Results in the simulator and Experiment Lab are calculated by Python, not manually invented.',
   },
 ];
 
 const team = [
   {
-    name: 'Team Role: Algorithms',
+    name: 'Humna Ilyas · A*',
     icon: Search,
-    text: 'Implements the A* and greedy best-first planners in Python, designs the heuristics, and validates optimality on known maps.',
+    text: 'Implements A* in Python, the Manhattan and Euclidean heuristic functions, and algorithm tests.',
   },
   {
-    name: 'Team Role: Interface',
+    name: 'Daniya Afzal · Greedy',
     icon: Bot,
-    text: 'Builds the React front end: the editable grid, playback controls, side-by-side comparison, and charting in the Experiment Lab.',
+    text: 'Implements Greedy Best-First Search and develops the grid and random obstacle generator.',
   },
   {
-    name: 'Team Role: Integration',
+    name: 'Zahrah Aqib · Visualization',
     icon: Wrench,
-    text: 'Owns the FastAPI service and the API contract, keeps the demo data honest, and wires real results into the UI.',
+    text: 'Develops website visualization, algorithm comparison, experiments, testing, documentation and presentation.',
   },
 ];
 
@@ -112,15 +112,15 @@ export default function About() {
                   Curious about the code?
                 </h2>
                 <p className="text-sm text-slate-400">
-                  The project is open for classmates to read, fork, and extend.
+                  The source code and documentation are maintained in the project repository.
                 </p>
               </div>
               <div className="flex gap-3">
-                <a href="https://github.com" target="_blank" rel="noreferrer" className="btn-primary">
+                <a href="https://github.com/Zahrah-Aqib/RoboNav" target="_blank" rel="noreferrer" className="btn-primary">
                   <Github size={16} /> Repository
                 </a>
-                <a href="mailto:team@robonav.example" className="btn-ghost">
-                  <Mail size={16} /> Contact
+                <a href="https://github.com/Zahrah-Aqib/RoboNav" className="btn-ghost">
+                  <Mail size={16} /> View project
                 </a>
               </div>
             </div>

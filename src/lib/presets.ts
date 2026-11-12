@@ -1,4 +1,4 @@
-import { GridState, Pos, createGrid, key } from './grid';
+import { GridState, createGrid, key } from './grid';
 
 export interface PresetMap {
   id: string;

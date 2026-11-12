@@ -85,22 +85,37 @@ export function randomizeWalls(grid: GridState, density: number): Set<string> {
 }
 
 /** Clamp / repair grid state after a dimension change. */
+/** Resize a grid without leaving obstacles on the start or goal cells. */
 export function resizeGrid(grid: GridState, rows: number, cols: number): GridState {
   const next = createGrid(rows, cols);
+
+  // Keep valid existing obstacle coordinates.
   const walls = new Set<string>();
-  grid.walls.forEach((k) => {
-    const p = parseKey(k);
-    if (inBounds({ rows, cols }, p)) walls.add(k);
+  grid.walls.forEach((cell) => {
+    if (inBounds({ rows, cols }, parseKey(cell))) walls.add(cell);
   });
-  next.walls = walls;
-  if (!inBounds({ rows, cols }, grid.start)) next.start = { ...grid.start };
+
+  // Keep the start/goal in bounds even when shrinking the map.
   next.start = {
-    row: Math.min(grid.start.row, rows - 1),
-    col: Math.min(grid.start.col, cols - 1),
+    row: Math.max(0, Math.min(grid.start.row, rows - 1)),
+    col: Math.max(0, Math.min(grid.start.col, cols - 1)),
   };
   next.goal = {
-    row: Math.min(grid.goal.row, rows - 1),
-    col: Math.min(grid.goal.col, cols - 1),
+    row: Math.max(0, Math.min(grid.goal.row, rows - 1)),
+    col: Math.max(0, Math.min(grid.goal.col, cols - 1)),
   };
+
+  // Avoid making the goal occupy the start after resizing.
+  if (samePos(next.start, next.goal)) {
+    next.goal = {
+      row: next.goal.row,
+      col: next.goal.col === cols - 1 ? 0 : cols - 1,
+    };
+  }
+
+  // A start/goal may not be an obstacle.
+  walls.delete(key(next.start));
+  walls.delete(key(next.goal));
+  next.walls = walls;
   return next;
 }

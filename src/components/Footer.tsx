@@ -48,7 +48,7 @@ export default function Footer() {
             this site is the interactive front end.
           </p>
           <a
-            href="https://github.com"
+            href="https://github.com/Zahrah-Aqib/RoboNav"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-soft transition mt-3"
@@ -60,8 +60,7 @@ export default function Footer() {
 
       <div className="border-t border-navy-600/40 py-4 text-center">
         <p className="text-xs text-slate-500">
-          RoboNav — Educational simulation demo. Demonstration data shown until the planning
-          backend is connected.
+          RoboNav — Educational robot navigation with real Python Greedy and A* search.
         </p>
       </div>
     </footer>

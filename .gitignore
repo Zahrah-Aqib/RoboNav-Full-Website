@@ -21,3 +21,18 @@ dist-ssr
 *.sln
 *.sw?
 .env
+
+# Python backend
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Test output
+.coverage
+coverage/
+
+# Keep example environment configuration visible
+!.env.example

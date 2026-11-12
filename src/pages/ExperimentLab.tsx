@@ -1,76 +1,87 @@
 import { useMemo, useState } from 'react';
-import { Download, FlaskConical, Info } from 'lucide-react';
+import { Download, FlaskConical, Play, AlertCircle } from 'lucide-react';
 import { PageHeader, SectionTitle } from '@/components/ui';
 import { BarChart, TrendChart } from '@/components/charts';
-import { MOCK_EXPERIMENT_ROWS, ExperimentRow } from '@/lib/mockData';
+import { apiExperiments } from '@/lib/api';
+import type { ExperimentRow, ExperimentSummary } from '@/lib/api';
+import type { Heuristic } from '@/lib/grid';
 
 type Metric = 'nodesExpanded' | 'pathCost' | 'executionTimeMs' | 'maxFrontier';
-
-const METRIC_LABELS: Record<Metric, string> = {
+const METRICS: Record<Metric, string> = {
   nodesExpanded: 'Nodes expanded',
   pathCost: 'Path cost',
   executionTimeMs: 'Execution time (ms)',
-  maxFrontier: 'Max frontier size',
+  maxFrontier: 'Maximum frontier',
 };
 
-const ALGO_LABEL: Record<ExperimentRow['algorithm'], string> = {
-  astar: 'A*',
-  greedy: 'Greedy',
-};
-
-function toCsv(rows: ExperimentRow[]): string {
-  const header =
-    'map,rows,cols,density,algorithm,heuristic,path_cost,nodes_expanded,max_frontier,time_ms';
-  const lines = rows.map((r) =>
-    [
-      `"${r.mapName}"`,
-      r.rows,
-      r.cols,
-      r.density.toFixed(2),
-      r.algorithm,
-      r.heuristic,
-      r.pathCost,
-      r.nodesExpanded,
-      r.maxFrontier,
-      r.executionTimeMs,
-    ].join(',')
-  );
-  return [header, ...lines].join('\n');
+function makeCsv(rows: ExperimentRow[]): string {
+  const fields = [
+    'mapName', 'rows', 'cols', 'density', 'seed', 'algorithm',
+    'heuristic', 'status', 'pathCost', 'nodesExpanded',
+    'nodesTested', 'maxFrontier', 'executionTimeMs',
+  ] as const;
+  return [
+    fields.join(','),
+    ...rows.map((row) => fields.map((field) => {
+      // Handle commas and quotation marks safely in exported CSV cells.
+      const value = String(row[field] ?? '');
+      return '"' + value.replace(/"/g, '""') + '"';
+    }).join(',')),
+  ].join('\n');
 }
 
 export default function ExperimentLab() {
-  const rows = MOCK_EXPERIMENT_ROWS;
+  const [rows, setRows] = useState<ExperimentRow[]>([]);
+  const [summary, setSummary] = useState<ExperimentSummary[]>([]);
   const [metric, setMetric] = useState<Metric>('nodesExpanded');
+  const [heuristic, setHeuristic] = useState<Heuristic>('manhattan');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [ran, setRan] = useState(false);
 
-  const maps = useMemo(() => Array.from(new Set(rows.map((r) => r.mapName))), [rows]);
+  const runBatch = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      // Replicate the grid sizes, densities and seeds in our proposal.
+      const response = await apiExperiments(
+        [10, 20, 50], [0.1, 0.2, 0.3], [1, 2, 3], heuristic,
+      );
+      setRows(response.rows);
+      setSummary(response.summary);
+      setRan(true);
+    } catch (problem) {
+      setError(problem instanceof Error ? problem.message : 'Could not run experiments.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const chartData = useMemo(() => {
-    return maps.map((m) => {
-      const astar = rows.find((r) => r.mapName === m && r.algorithm === 'astar');
-      const greedy = rows.find((r) => r.mapName === m && r.algorithm === 'greedy');
+  const byMap = useMemo(() => {
+    const names = Array.from(new Set(rows.map((r) => r.mapName)));
+    return names.slice(0, 18).map((name) => {
+      const a = rows.find((r) => r.mapName === name && r.algorithm === 'astar');
+      const g = rows.find((r) => r.mapName === name && r.algorithm === 'greedy');
       return {
-        label: m,
-        value: greedy?.[metric] ?? 0,
-        compareValue: astar?.[metric],
+        label: name.replace('Random ', '').replace(' (seed ', ' #').replace(')', ''),
+        value: metric === 'pathCost' ? (g?.pathCost ?? 0) : (g?.[metric] ?? 0),
+        compareValue: metric === 'pathCost' ? (a?.pathCost ?? 0) : (a?.[metric] ?? 0),
       };
     });
-  }, [maps, rows, metric]);
+  }, [rows, metric]);
 
-  const expansionTrend = useMemo(
-    () =>
-      rows
-        .filter((r) => r.algorithm === 'greedy')
-        .map((r) => r.nodesExpanded),
-    [rows]
-  );
+  const expandedGreedy = rows
+    .filter((r) => r.algorithm === 'greedy')
+    .map((r) => r.nodesExpanded);
 
-  const downloadCsv = () => {
-    const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' });
+  const download = () => {
+    if (!rows.length) return;
+    const blob = new Blob([makeCsv(rows)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'robonav-experiment-demo.csv';
-    a.click();
+    const element = document.createElement('a');
+    element.href = url;
+    element.download = 'robonav-real-experiments.csv';
+    element.click();
     URL.revokeObjectURL(url);
   };
 
@@ -78,135 +89,139 @@ export default function ExperimentLab() {
     <div className="page-enter">
       <PageHeader
         eyebrow="Experiment Lab"
-        title={<>Compare, chart, and <span className="text-cyan-soft">export</span></>}
-        description="Run batches of maps through both planners, chart the metrics that matter for
-          your report, and export everything as CSV. Values below are demo placeholders until the
-          Python backend is connected."
+        title={<>Test, compare, and <span className="text-cyan-soft">export</span></>}
+        description="Run real Python A* and Greedy searches on matched random grids. Every result comes from the backend."
       />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* Demo data notice */}
-        <div className="glass-panel p-4 flex items-start gap-3 border-amber-400/30">
-          <Info className="text-amber-400 shrink-0 mt-0.5" size={18} />
-          <p className="text-sm text-slate-300 leading-relaxed">
-            <span className="font-medium text-amber-300">Demo dataset.</span> These numbers are
-            hand-written illustrations of the output format — they are not real algorithm runs and
-            should not be cited in a report. Once the FastAPI backend is connected, this page will
-            chart live results instead.
+        <section className="glass-panel p-6 space-y-4">
+          <SectionTitle>Batch experiment setup</SectionTitle>
+          <p className="text-sm text-slate-400">
+            Tests 10×10, 20×20 and 50×50 grids at 10%, 20% and 30% obstacle density,
+            with seeds 1, 2 and 3. Both algorithms use the exact same grid for each seed.
+            No external dataset or database is required.
           </p>
-        </div>
-
-        {/* Charts */}
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="glass-panel p-6 space-y-4">
-            <SectionTitle>Metric by map</SectionTitle>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(METRIC_LABELS) as Metric[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMetric(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-display font-medium transition cursor-pointer border ${
-                    metric === m
-                      ? 'bg-cyan/15 border-cyan/50 text-cyan-soft shadow-glow-sm'
-                      : 'bg-navy-800/60 border-navy-600 text-slate-300 hover:text-cyan-soft'
-                  }`}
-                >
-                  {METRIC_LABELS[m]}
-                </button>
-              ))}
-            </div>
-            <BarChart
-              data={chartData}
-              unit={metric === 'executionTimeMs' ? ' ms' : ''}
-              colorA="#fbbf24"
-              colorB="#22d3ee"
-            />
-            <div className="flex gap-5 text-xs text-slate-400">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#22d3ee' }} /> A*
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#fbbf24' }} /> Greedy
-              </span>
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 space-y-4">
-            <SectionTitle>Greedy expansion across runs</SectionTitle>
-            <TrendChart values={expansionTrend} color="#fbbf24" />
-            <p className="text-sm text-slate-400 leading-relaxed">
-              Each bar is one demo run. In real experiments this view makes it easy to spot
-              where greedy best-first expands far fewer nodes than A* — and where that
-              cheapness costs it the shortest path.
-            </p>
-          </div>
-        </div>
-
-        {/* Data table */}
-        <div className="glass-panel p-6">
-          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-            <SectionTitle>Experiment data</SectionTitle>
-            <button onClick={downloadCsv} className="btn-primary">
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="min-w-[180px]">
+              <span className="input-label">Heuristic</span>
+              <select className="select-input" value={heuristic}
+                onChange={(event) => setHeuristic(event.target.value as Heuristic)}>
+                <option value="manhattan">Manhattan</option>
+                <option value="euclidean">Euclidean</option>
+              </select>
+            </label>
+            <button onClick={runBatch} disabled={loading} className="btn-primary">
+              <Play size={16} /> {loading ? 'Running experiments…' : 'Run experiments'}
+            </button>
+            <button onClick={download} disabled={!rows.length} className="btn-ghost">
               <Download size={16} /> Export CSV
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-[11px] uppercase tracking-widest text-slate-400 border-b border-navy-600/60">
-                  <th className="py-2.5 pr-4 font-display">Map</th>
-                  <th className="py-2.5 pr-4 font-display">Size</th>
-                  <th className="py-2.5 pr-4 font-display">Density</th>
-                  <th className="py-2.5 pr-4 font-display">Algorithm</th>
-                  <th className="py-2.5 pr-4 font-display">Heuristic</th>
-                  <th className="py-2.5 pr-4 font-display text-right">Cost</th>
-                  <th className="py-2.5 pr-4 font-display text-right">Expanded</th>
-                  <th className="py-2.5 pr-4 font-display text-right">Max frontier</th>
-                  <th className="py-2.5 font-display text-right">Time (ms)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b border-navy-700/40 hover:bg-navy-700/30 transition-colors"
-                  >
-                    <td className="py-2.5 pr-4 text-slate-200">{r.mapName}</td>
-                    <td className="py-2.5 pr-4 font-mono text-xs text-slate-400">
-                      {r.rows}×{r.cols}
-                    </td>
-                    <td className="py-2.5 pr-4 font-mono text-xs text-slate-400">
-                      {r.density.toFixed(2)}
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                          r.algorithm === 'astar'
-                            ? 'bg-cyan/10 text-cyan-soft border border-cyan/30'
-                            : 'bg-amber-400/10 text-amber-300 border border-amber-400/30'
-                        }`}
-                      >
-                        {ALGO_LABEL[r.algorithm]}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-4 text-slate-400 capitalize">{r.heuristic}</td>
-                    <td className="py-2.5 pr-4 font-mono text-right text-slate-200">{r.pathCost}</td>
-                    <td className="py-2.5 pr-4 font-mono text-right text-slate-200">{r.nodesExpanded}</td>
-                    <td className="py-2.5 pr-4 font-mono text-right text-slate-200">{r.maxFrontier}</td>
-                    <td className="py-2.5 font-mono text-right text-slate-200">
-                      {r.executionTimeMs.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="text-xs text-slate-500 mt-4 flex items-center gap-2">
-            <FlaskConical size={13} />
-            Exported CSVs carry the same columns as the live backend will produce, so report
-            tooling can be written once.
-          </p>
-        </div>
+          {error && <p role="alert" className="text-amber-300 text-sm flex items-center gap-2">
+            <AlertCircle size={16}/>{error}
+          </p>}
+          {ran && !error && (
+            <p className="text-sm text-cyan-soft">
+              Completed {rows.length} measured runs on {rows.length / 2} matched maps.
+            </p>
+          )}
+        </section>
+
+        {rows.length > 0 ? (
+          <>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <section className="glass-panel p-6 space-y-4">
+                <SectionTitle>Metrics by map</SectionTitle>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(METRICS) as Metric[]).map((name) => (
+                    <button key={name} onClick={() => setMetric(name)}
+                      className={metric === name ? 'btn-primary !px-3 !py-1.5' : 'btn-ghost !px-3 !py-1.5'}>
+                      {METRICS[name]}
+                    </button>
+                  ))}
+                </div>
+                <BarChart data={byMap} colorA="#fbbf24" colorB="#22d3ee"
+                  unit={metric === 'executionTimeMs' ? ' ms' : ''} />
+                <p className="text-xs text-slate-400">
+                  Gold: Greedy | Cyan: A*. Unsolved maps have no valid path cost.
+                </p>
+              </section>
+              <section className="glass-panel p-6 space-y-4">
+                <SectionTitle>Greedy expansions across runs</SectionTitle>
+                <TrendChart values={expandedGreedy} color="#fbbf24" />
+                <p className="text-sm text-slate-400">
+                  Each bar represents the actual number of expanded nodes on one map.
+                  Expanding fewer nodes does not always give the shortest route.
+                </p>
+              </section>
+            </div>
+            <section className="glass-panel p-6">
+              <SectionTitle>Average results by grid size and density</SectionTitle>
+              <div className="overflow-x-auto mt-4">
+                <table className="w-full text-sm text-left">
+                  <thead className="border-b border-navy-600 text-slate-400 text-xs">
+                    <tr>
+                      {['Grid', 'Density', 'Algorithm', 'Solved', 'Avg cost', 'Avg expanded', 'Avg frontier', 'Avg time (ms)'].map((h) =>
+                        <th key={h} className="p-2">{h}</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {summary.map((r) => (
+                      <tr key={String(r.size) + '-' + r.density + '-' + r.algorithm}
+                        className="border-b border-navy-700/40">
+                        <td className="p-2">{r.size}×{r.size}</td>
+                        <td className="p-2">{Math.round(r.density * 100)}%</td>
+                        <td className="p-2">{r.algorithm === 'astar' ? 'A*' : 'Greedy'}</td>
+                        <td className="p-2">{r.successes}/{r.runs}</td>
+                        <td className="p-2">{r.avgPathCost ?? 'No path'}</td>
+                        <td className="p-2">{r.avgNodesExpanded}</td>
+                        <td className="p-2">{r.avgMaxFrontier}</td>
+                        <td className="p-2">{r.avgExecutionTimeMs.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section className="glass-panel p-6">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <SectionTitle>Every individual run</SectionTitle>
+                <button onClick={download} className="btn-primary">
+                  <Download size={15}/> Download real CSV
+                </button>
+              </div>
+              <div className="overflow-x-auto max-h-[460px] overflow-y-auto mt-4">
+                <table className="w-full text-sm">
+                  <thead className="text-slate-400 border-b border-navy-600 text-left sticky top-0 bg-navy-900">
+                    <tr>
+                      {['Map', 'Algorithm', 'Status', 'Path cost', 'Expanded', 'Frontier', 'Time (ms)'].map((h) =>
+                        <th key={h} className="p-2">{h}</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr key={r.id} className="border-b border-navy-700/40">
+                        <td className="p-2">{r.mapName}</td>
+                        <td className="p-2">{r.algorithm === 'astar' ? 'A*' : 'Greedy'}</td>
+                        <td className="p-2">{r.status === 'found' ? 'Found' : 'No path'}</td>
+                        <td className="p-2">{r.pathCost ?? '—'}</td>
+                        <td className="p-2">{r.nodesExpanded}</td>
+                        <td className="p-2">{r.maxFrontier}</td>
+                        <td className="p-2">{r.executionTimeMs.toFixed(3)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="glass-panel p-10 text-center text-slate-400">
+            <FlaskConical className="mx-auto mb-3 text-cyan-soft" size={28} />
+            Run the batch above to generate genuine, repeatable results.
+          </section>
+        )}
       </div>
     </div>
   );
