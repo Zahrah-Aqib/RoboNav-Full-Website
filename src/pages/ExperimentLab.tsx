@@ -33,6 +33,7 @@ function makeCsv(rows: ExperimentRow[]): string {
 export default function ExperimentLab() {
   const [rows, setRows] = useState<ExperimentRow[]>([]);
   const [summary, setSummary] = useState<ExperimentSummary[]>([]);
+  const [overall, setOverall] = useState<{ mapsTested: number; comparableRuns: number; nonOptimalGreedyCount: number; greedyNonOptimalPct: number | null } | null>(null);
   const [metric, setMetric] = useState<Metric>('nodesExpanded');
   const [heuristic, setHeuristic] = useState<Heuristic>('manhattan');
   const [loading, setLoading] = useState(false);
@@ -49,6 +50,7 @@ export default function ExperimentLab() {
       );
       setRows(response.rows);
       setSummary(response.summary);
+      setOverall(response.overall);
       setRan(true);
     } catch (problem) {
       setError(problem instanceof Error ? problem.message : 'Could not run experiments.');
@@ -97,7 +99,7 @@ export default function ExperimentLab() {
           <SectionTitle>Batch experiment setup</SectionTitle>
           <p className="text-sm text-slate-400">
             Tests 10×10, 20×20 and 50×50 grids at 10%, 20% and 30% obstacle density,
-            with seeds 1, 2 and 3. Both algorithms use the exact same grid for each seed.
+            with seeds 1, 2 and 3, plus a U-shaped trap. Both algorithms use the exact same grid for each seed.
             No external dataset or database is required.
           </p>
           <div className="flex flex-wrap items-end gap-4">
@@ -119,6 +121,14 @@ export default function ExperimentLab() {
           {error && <p role="alert" className="text-amber-300 text-sm flex items-center gap-2">
             <AlertCircle size={16}/>{error}
           </p>}
+          {overall && (
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="stat-card"><span className="stat-value">{overall.mapsTested}</span><span className="stat-label">Matched maps</span></div>
+              <div className="stat-card"><span className="stat-value">{overall.comparableRuns}</span><span className="stat-label">Both algorithms found a route</span></div>
+              <div className="stat-card"><span className="stat-value">{overall.greedyNonOptimalPct === null ? 'N/A' : overall.greedyNonOptimalPct + '%'}</span><span className="stat-label">Greedy non-optimal routes</span></div>
+              <p className="sm:col-span-3 text-xs text-slate-400">Percentage = matched maps where Greedy path cost exceeds A* / matched maps solved by both algorithms × 100. Includes a hand-designed U-shaped trap.</p>
+            </div>
+          )}
           {ran && !error && (
             <p className="text-sm text-cyan-soft">
               Completed {rows.length} measured runs on {rows.length / 2} matched maps.
@@ -160,7 +170,7 @@ export default function ExperimentLab() {
                 <table className="w-full text-sm text-left">
                   <thead className="border-b border-navy-600 text-slate-400 text-xs">
                     <tr>
-                      {['Grid', 'Density', 'Algorithm', 'Solved', 'Avg cost', 'Avg expanded', 'Avg frontier', 'Avg time (ms)'].map((h) =>
+                      {['Grid', 'Density', 'Algorithm', 'Solved', 'Avg cost', 'Avg expanded', 'Avg frontier', 'Avg time (ms)', 'Greedy non-optimal %'].map((h) =>
                         <th key={h} className="p-2">{h}</th>
                       )}
                     </tr>
@@ -177,6 +187,7 @@ export default function ExperimentLab() {
                         <td className="p-2">{r.avgNodesExpanded}</td>
                         <td className="p-2">{r.avgMaxFrontier}</td>
                         <td className="p-2">{r.avgExecutionTimeMs.toFixed(3)}</td>
+                        <td className="p-2">{r.greedyNonOptimalPct === null ? "N/A" : r.greedyNonOptimalPct + "%"}</td>
                       </tr>
                     ))}
                   </tbody>

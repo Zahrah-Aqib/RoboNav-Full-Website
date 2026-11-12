@@ -111,7 +111,28 @@ const snareTrap: PresetMap = fromRows(
   ]
 );
 
-export const PRESETS: PresetMap[] = [emptyField, corridorWall, mazeRooms, scatter, snareTrap];
+const uShapedTrap: PresetMap = fromRows(
+  'u-shaped',
+  'U-shaped Greedy Trap',
+  'Hand-designed case from the proposal: A* cost 15 versus Greedy cost 39.',
+  [
+    '...............',
+    '...............',
+    '....########...',
+    '...........#...',
+    '...........#...',
+    '..........G#...',
+    '...........#...',
+    '...........#...',
+    '...........#...',
+    '...........#...',
+    '....########...',
+    '...............',
+    '....S..........',
+  ]
+);
+
+export const PRESETS: PresetMap[] = [emptyField, corridorWall, mazeRooms, scatter, snareTrap, uShapedTrap];
 
 export function presetById(id: string): PresetMap | undefined {
   return PRESETS.find((p) => p.id === id);

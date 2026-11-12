@@ -2,7 +2,7 @@
 
 **Robot Navigation in an Obstacle-Filled Environment: A Comparative Study of Greedy Best-First Search and A* Search**
 
-A multi-page React/TypeScript website with a Three.js robot and a real Python FastAPI backend. Both algorithms are implemented from basic search concepts. No pathfinding library, machine learning, Kaggle dataset, login system, or database is required.
+Two interfaces sharing the same from-scratch Python search code: a multi-page React/TypeScript/Three.js website (FastAPI backend) AND a standalone Streamlit + NumPy + Matplotlib simulator. Both algorithms are implemented from basic search concepts. No pathfinding library, machine learning, Kaggle dataset, login system, or database is required.
 
 ## Features
 
@@ -14,7 +14,10 @@ A multi-page React/TypeScript website with a Three.js robot and a real Python Fa
 - The backend records actual explored nodes, frontier snapshots, the final path and performance metrics.
 - Side-by-side comparison always uses the same obstacle grid.
 - Experiment Lab tests 10x10, 20x20 and 50x50 grids, densities of 10%, 20%, 30%, and seeds 1, 2, 3.
-- Real CSV export and averages, not fabricated demonstration data.
+- Real CSV export and averages, including the percentage of non-optimal Greedy paths.
+- A documented U-shaped Greedy trap with a deliberately worse Greedy path.
+- Python-native Streamlit + Matplotlib companion with grid editing, search playback, comparison and report charts.
+- Free Streamlit Community Cloud deployment with no extra API hosting.
 
 **Scope:** Static, fully known, 2D grids. The 3D robot is decorative; the navigation environment is intentionally 2D. Optional eight-direction movement is not included in this version.
 
@@ -24,7 +27,19 @@ A multi-page React/TypeScript website with a Three.js robot and a real Python Fa
 - Python 3.10+ (Python 3.12 recommended)
 - VS Code or another editor
 
-## Running the project on Windows
+## Streamlit + Matplotlib (instructor-recommended hosting)
+
+You can run and deploy a Python-native app **without FastAPI/Render**. From the repository root:
+
+~~~powershell
+py -m venv .streamlit-venv
+.\.streamlit-venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.streamlit-venv\Scripts\python.exe -m streamlit run streamlit_app.py
+~~~
+
+Open http://localhost:8501. Deploy to Streamlit Community Cloud by choosing this repository, branch main, and the entrypoint `streamlit_app.py` (see docs/STREAMLIT_SETUP.md). React remains a separate, optional advanced frontend.
+
+## Running the React website on Windows
 
 Use TWO terminals in VS Code.
 
@@ -76,6 +91,10 @@ python -m unittest discover -s tests -v
 
 The Python tests include HTTP API endpoint checks, plus shortest paths on open maps, detours, no-path maps, frontier snapshots, same start/goal, invalid inputs, repeatable seeds and paired experiments.
 
+## Proposal-specific experiments
+
+Use the U-shaped preset to show where Greedy makes a longer choice despite the admissible Manhattan heuristic. The Experiment Lab now reports non-optimal Greedy percentage using only identical maps solved by both algorithms. Both the React and Streamlit interfaces call backend/experiments.py. The Streamlit Experiment Lab can now download a measured experimental report PDF generated with ReportLab. Review this report, include original screenshots, discuss key cases, and add the live Streamlit link before submitting.
+
 ## API endpoints
 
 - GET /api/health: health check
@@ -122,6 +141,8 @@ Every member should review and understand the code for the viva.
 
 ~~~text
 RoboNav/
+  streamlit_app.py             # Python-native visualization
+  requirements.txt             # Streamlit Community Cloud
   backend/
     algorithms/
       search.py

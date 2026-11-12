@@ -40,8 +40,8 @@ export interface ExperimentRow {
   mapName: string;
   rows: number;
   cols: number;
-  density: number;
-  seed: number;
+  density: number | null;
+  seed: number | null;
   algorithm: 'astar' | 'greedy';
   heuristic: Heuristic;
   status: 'found' | 'no_path';
@@ -62,11 +62,27 @@ export interface ExperimentSummary {
   avgNodesExpanded: number;
   avgMaxFrontier: number;
   avgExecutionTimeMs: number;
+  comparableRuns: number;
+  nonOptimalGreedyCount: number;
+  greedyNonOptimalPct: number | null;
 }
 
 export interface ExperimentResponse {
   rows: ExperimentRow[];
   summary: ExperimentSummary[];
+  comparisons: Array<{
+    mapName: string;
+    comparable: boolean;
+    greedyNonOptimal: boolean | null;
+    astarCost: number | null;
+    greedyCost: number | null;
+  }>;
+  overall: {
+    mapsTested: number;
+    comparableRuns: number;
+    nonOptimalGreedyCount: number;
+    greedyNonOptimalPct: number | null;
+  };
 }
 
 export function gridToApiMap(grid: GridState) {
@@ -136,5 +152,5 @@ export function apiExperiments(
   seeds: number[],
   heuristic: Heuristic,
 ): Promise<ExperimentResponse> {
-  return post('/api/experiments', { gridSizes, densities, seeds, heuristic });
+  return post('/api/experiments', { gridSizes, densities, seeds, heuristic, includeUTrap: true });
 }
