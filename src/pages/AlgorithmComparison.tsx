@@ -35,8 +35,8 @@ export default function AlgorithmComparison() {
   const [error, setError] = useState<string | null>(null);
 
   const totalFrames = Math.max(
-    result?.astar.frames.length ?? 0,
-    result?.greedy.frames.length ?? 0
+    (result?.astar.frames.length ?? 0) + (result?.astar.path.length ?? 0),
+    (result?.greedy.frames.length ?? 0) + (result?.greedy.path.length ?? 0)
   );
   const playback = usePlayback(totalFrames, speed);
 
@@ -221,7 +221,10 @@ export default function AlgorithmComparison() {
                 </div>
 
                 <div className="flex justify-center overflow-x-auto">
-                  <GridCanvas grid={grid} overlay={overlay} cellSize={side === 'astar' ? 24 : 24} />
+                  <GridCanvas grid={grid} overlay={overlay} cellSize={24}
+                    robotPosition={run && playback.frame > run.frames.length && run.path.length > 0
+                      ? run.path[Math.min(playback.frame - run.frames.length - 1, run.path.length - 1)]
+                      : undefined} />
                 </div>
 
                 {run ? (
@@ -255,6 +258,7 @@ export default function AlgorithmComparison() {
         <div className="glass-panel p-5">
           <div className="flex flex-wrap gap-x-6 gap-y-2 mb-3">
             <LegendDot color="rgba(34, 211, 238, 0.16)" label="Explored" />
+            <LegendDot color="rgba(251, 191, 36, 0.35)" label="Frontier" />
             <LegendDot color="#22d3ee" label="Final path" />
             <LegendDot color="#22c55e" label="Start" />
             <LegendDot color="#f43f5e" label="Goal" />

@@ -1,5 +1,8 @@
-import { CSSProperties, useCallback, useRef } from 'react';
-import { GridState, Pos, key, samePos, CellRole } from '@/lib/grid';
+import { useCallback, useRef } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import { Bot } from 'lucide-react';
+import type { GridState, Pos, CellRole } from '@/lib/grid';
+import { key, samePos } from '@/lib/grid';
 
 const CELL_COLORS: Record<CellRole, string> = {
   empty: 'rgba(255,255,255,0.04)',
@@ -13,12 +16,10 @@ const CELL_COLORS: Record<CellRole, string> = {
 
 export interface GridCanvasProps {
   grid: GridState;
-  /** Per-cell override layer (explored/frontier/path), keyed "row:col". */
   overlay?: Map<string, CellRole>;
-  /** Maximum cells on the longest edge before rendering as canvas. */
-  canvasThreshold?: number;
-  onPaintCell?: (p: Pos) => void;
-  /** Called when a drag paint gesture starts (mousedown on a cell). */
+  /** A real robot marker that advances along the planned path. */
+  robotPosition?: Pos;
+  onPaintCell?: (position: Pos) => void;
   onPaintStart?: () => void;
   editable?: boolean;
   className?: string;
@@ -29,14 +30,11 @@ function cellStyle(role: CellRole): CSSProperties {
   return { backgroundColor: CELL_COLORS[role] };
 }
 
-/**
- * 2D editable obstacle grid. Uses DOM cells for small/medium grids
- * (crisper, easier styling) and keeps interactions simple: click or
- * drag to paint, dedicated tools for start/goal placement.
- */
+/** Draw and edit a 2D obstacle grid using mouse, touch or a stylus. */
 export default function GridCanvas({
   grid,
   overlay,
+  robotPosition,
   onPaintCell,
   onPaintStart,
   editable = false,
@@ -44,55 +42,70 @@ export default function GridCanvas({
   cellSize,
 }: GridCanvasProps) {
   const paintingRef = useRef(false);
+  const lastPaintRef = useRef('');
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const computed = cellSize ?? (grid.cols <= 20 ? 36 : grid.cols <= 32 ? 26 : 20);
 
-  const handleDown = useCallback(
-    (p: Pos) => {
-      if (!editable || !onPaintCell) return;
-      paintingRef.current = true;
-      onPaintStart?.();
-      onPaintCell(p);
-    },
-    [editable, onPaintCell, onPaintStart]
-  );
+  const paintCell = useCallback((position: Pos) => {
+    if (!editable || !onPaintCell) return;
+    // Avoid repainting a cell on every small pointer movement.
+    const id = key(position);
+    if (id === lastPaintRef.current) return;
+    lastPaintRef.current = id;
+    onPaintCell(position);
+  }, [editable, onPaintCell]);
 
-  const handleEnter = useCallback(
-    (p: Pos) => {
-      if (!paintingRef.current || !editable || !onPaintCell) return;
-      onPaintCell(p);
-    },
-    [editable, onPaintCell]
-  );
+  const handlePointerDown = (position: Pos) => {
+    if (!editable) return;
+    paintingRef.current = true;
+    lastPaintRef.current = '';
+    onPaintStart?.();
+    paintCell(position);
+  };
 
-  const handleUp = useCallback(() => {
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!paintingRef.current || !editable || !gridRef.current) return;
+    const rect = gridRef.current.getBoundingClientRect();
+    const row = Math.floor((event.clientY - rect.top) / computed);
+    const col = Math.floor((event.clientX - rect.left) / computed);
+    if (row >= 0 && row < grid.rows && col >= 0 && col < grid.cols) {
+      paintCell({ row, col });
+    }
+  };
+
+  const stopPainting = () => {
     paintingRef.current = false;
-  }, []);
+    lastPaintRef.current = '';
+  };
 
-  const roleFor = (r: number, c: number): CellRole => {
-    const p = { row: r, col: c };
-    const k = key(p);
-    if (samePos(p, grid.start)) return 'start';
-    if (samePos(p, grid.goal)) return 'goal';
-    if (overlay?.has(k)) return overlay.get(k)!;
-    if (grid.walls.has(k)) return 'obstacle';
+  const roleFor = (position: Pos): CellRole => {
+    const id = key(position);
+    if (samePos(position, grid.start)) return 'start';
+    if (samePos(position, grid.goal)) return 'goal';
+    if (overlay?.has(id)) return overlay.get(id)!;
+    if (grid.walls.has(id)) return 'obstacle';
     return 'empty';
   };
 
   const cells = [];
-  for (let r = 0; r < grid.rows; r++) {
-    for (let c = 0; c < grid.cols; c++) {
-      const role = roleFor(r, c);
+  for (let row = 0; row < grid.rows; row++) {
+    for (let col = 0; col < grid.cols; col++) {
+      const position = { row, col };
+      const role = roleFor(position);
       const isStart = role === 'start';
       const isGoal = role === 'goal';
+      const isRobot = !!robotPosition && samePos(position, robotPosition);
+
       cells.push(
         <div
-          key={`${r}:${c}`}
-          onMouseDown={() => handleDown({ row: r, col: c })}
-          onMouseEnter={() => handleEnter({ row: r, col: c })}
-          className={`relative border border-navy-700/50 transition-colors duration-100 ${
-            editable ? 'cursor-crosshair hover:border-cyan/60' : ''
-          } ${isStart || isGoal ? 'z-10' : ''}`}
+          key={row + ':' + col}
+          onPointerDown={() => handlePointerDown(position)}
+          className={
+            'relative border border-navy-700/50 transition-colors duration-100 ' +
+            (editable ? 'cursor-crosshair hover:border-cyan/60 ' : '') +
+            (isStart || isGoal ? 'z-10' : '')
+          }
           style={cellStyle(role)}
         >
           {isStart && (
@@ -106,7 +119,14 @@ export default function GridCanvas({
             </span>
           )}
           {role === 'path' && (
-            <span className="absolute inset-0 bg-cyan shadow-glow-sm animate-pulse-slow" />
+            <span className="absolute inset-0 bg-cyan/75 shadow-glow-sm animate-pulse-slow" />
+          )}
+          {isRobot && (
+            <span className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+              <span className="rounded-md bg-cyan-dim text-white border border-white/60 shadow-glow-sm p-0.5">
+                <Bot size={Math.max(11, Math.round(computed * 0.5))} strokeWidth={2.5}/>
+              </span>
+            </span>
           )}
         </div>
       );
@@ -115,16 +135,18 @@ export default function GridCanvas({
 
   return (
     <div
-      className={`inline-block rounded-lg overflow-hidden ring-1 ring-navy-600/60 shadow-panel ${className}`}
-      onMouseUp={handleUp}
-      onMouseLeave={handleUp}
+      ref={gridRef}
+      className={'inline-block rounded-lg overflow-hidden ring-1 ring-navy-600/60 shadow-panel ' + className}
+      onPointerMove={handlePointerMove}
+      onPointerUp={stopPainting}
+      onPointerCancel={stopPainting}
+      onPointerLeave={stopPainting}
       style={{ touchAction: 'none' }}
     >
-      <div
-        className="grid"
+      <div className="grid"
         style={{
-          gridTemplateColumns: `repeat(${grid.cols}, ${computed}px)`,
-          gridAutoRows: `${computed}px`,
+          gridTemplateColumns: 'repeat(' + grid.cols + ', ' + computed + 'px)',
+          gridAutoRows: computed + 'px',
         }}
       >
         {cells}

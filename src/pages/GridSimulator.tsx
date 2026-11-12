@@ -46,8 +46,13 @@ export default function GridSimulator() {
   const [running, setRunning] = useState(false);
   const [apiNotice, setApiNotice] = useState<string | null>(null);
 
-  const totalFrames = run?.frames.length ?? 0;
+  const totalFrames = run ? run.frames.length + run.path.length : 0;
   const playback = usePlayback(totalFrames, 5);
+  // Once exploration finishes, move the robot along each cell of the found route.
+  const walked = run ? playback.frame - run.frames.length : 0;
+  const robotPosition = run && walked > 0 && run.path.length > 0
+    ? run.path[Math.min(walked - 1, run.path.length - 1)]
+    : undefined;
 
   // Overlay derived from playback position.
   const overlay = useMemo(
@@ -186,6 +191,7 @@ export default function GridSimulator() {
             <GridCanvas
               grid={grid}
               overlay={overlay}
+              robotPosition={robotPosition}
               editable
               onPaintCell={paint}
               onPaintStart={markDirty}
@@ -196,6 +202,7 @@ export default function GridSimulator() {
             <div className="flex flex-wrap gap-x-5 gap-y-2">
               <LegendDot color="#1f3154" label="Obstacle" />
               <LegendDot color="rgba(34, 211, 238, 0.16)" label="Explored" />
+              <LegendDot color="rgba(251, 191, 36, 0.35)" label="Frontier" />
               <LegendDot color="#22d3ee" label="Path" />
               <LegendDot color="#22c55e" label="Start" />
               <LegendDot color="#f43f5e" label="Goal" />

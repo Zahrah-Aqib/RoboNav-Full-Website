@@ -70,10 +70,11 @@ npm.cmd run typecheck
 npm.cmd run lint
 npm.cmd run build
 cd backend
+python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
 ~~~
 
-The Python tests cover shortest paths on open maps, detours, no-path maps, frontier snapshots, same start/goal, invalid inputs, repeatable seeds and paired experiments.
+The Python tests include HTTP API endpoint checks, plus shortest paths on open maps, detours, no-path maps, frontier snapshots, same start/goal, invalid inputs, repeatable seeds and paired experiments.
 
 ## API endpoints
 

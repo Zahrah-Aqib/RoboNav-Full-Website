@@ -1,4 +1,4 @@
-/** Build the overlay from actual Python frontier snapshots, not demo values. */
+/** Build the overlay from actual Python search frames and the planned robot route. */
 import type { Pos, CellRole } from './grid';
 import { key, samePos } from './grid';
 import type { RunResult } from './api';
@@ -13,28 +13,31 @@ export function overlayFor(
   const overlay = new Map<string, CellRole>();
   if (!run) return overlay;
 
-  // All previously selected nodes appear as explored cells.
-  for (let i = 0; i < frameNumber; i++) {
-    if (run.frames[i]) overlay.set(key(run.frames[i].explored), 'explored');
+  const searchLength = run.frames.length;
+
+  // First animate which nodes were actually selected by the algorithm.
+  for (let i = 0; i < Math.min(frameNumber, searchLength); i++) {
+    overlay.set(key(run.frames[i].explored), 'explored');
   }
 
-  // Show the actual frontier after expanding the latest selected node.
-  const latest = run.frames[Math.max(0, frameNumber - 1)];
-  if (latest) {
-    for (const position of latest.frontier) {
+  // During the search show the exact set of nodes waiting in the frontier.
+  if (frameNumber > 0 && frameNumber <= searchLength) {
+    for (const position of run.frames[frameNumber - 1].frontier) {
       if (!samePos(position, start) && !samePos(position, goal)) {
         overlay.set(key(position), 'frontier');
       }
     }
   }
 
-  // Only paint the final route when the search animation finishes.
-  if (isDone) {
-    for (const position of run.path) {
-      if (!samePos(position, start) && !samePos(position, goal)) {
-        overlay.set(key(position), 'path');
-      }
+  // After search finishes, animate the robot walking along the final path.
+  const walked = isDone
+    ? run.path.length
+    : Math.max(0, frameNumber - searchLength);
+  for (const position of run.path.slice(0, walked)) {
+    if (!samePos(position, start) && !samePos(position, goal)) {
+      overlay.set(key(position), 'path');
     }
   }
+
   return overlay;
 }
