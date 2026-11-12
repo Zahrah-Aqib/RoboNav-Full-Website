@@ -64,6 +64,7 @@ class ExperimentRequest(BaseModel):
     densities: list[float] = Field(default_factory=lambda: [0.1, 0.2, 0.3])
     seeds: list[int] = Field(default_factory=lambda: [1, 2, 3])
     heuristic: str = "manhattan"
+    includeUTrap: bool = True
 
 
 @app.get("/api/health")
@@ -117,4 +118,4 @@ def experiments(request: ExperimentRequest) -> dict:
         or request.heuristic not in ("manhattan", "euclidean")
     ):
         raise HTTPException(status_code=422, detail="Invalid or overly large experiment request.")
-    return run_experiments(sizes, densities, seeds, request.heuristic)
+    return run_experiments(sizes, densities, seeds, request.heuristic, request.includeUTrap)

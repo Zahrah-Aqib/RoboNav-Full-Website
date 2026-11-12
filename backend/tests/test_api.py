@@ -59,7 +59,8 @@ class TestApi(unittest.TestCase):
             "heuristic": "euclidean",
         })
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["rows"]), 4)
+        self.assertEqual(len(response.json()["rows"]), 6)
+        self.assertIn("greedyNonOptimalPct", response.json()["overall"])
 
 
 if __name__ == "__main__":

@@ -36,3 +36,6 @@ coverage/
 
 # Keep example environment configuration visible
 !.env.example
+
+# Dedicated Streamlit local virtual environment
+.streamlit-venv/
