@@ -2,7 +2,7 @@
 
 **Robot Navigation in an Obstacle-Filled Environment: A Comparative Study of Greedy Best-First Search and A* Search**
 
-Two interfaces sharing the same from-scratch Python search code: a multi-page React/TypeScript/Three.js website (FastAPI backend) AND a standalone Streamlit + NumPy + Matplotlib simulator. Both algorithms are implemented from basic search concepts. No pathfinding library, machine learning, Kaggle dataset, login system, or database is required.
+The FINAL RoboNav Website is an eight-page React/TypeScript/Three.js app using a real Python FastAPI backend. It includes a new Python Visualizations tab, whose figures and charts are rendered by Matplotlib and NumPy in Python. The instructor-recommended standalone Streamlit app will be maintained in a SEPARATE repository. Both algorithms are implemented from basic search concepts. No pathfinding library, machine learning, Kaggle dataset, login system, or database is required.
 
 ## Features
 
@@ -16,8 +16,8 @@ Two interfaces sharing the same from-scratch Python search code: a multi-page Re
 - Experiment Lab tests 10x10, 20x20 and 50x50 grids, densities of 10%, 20%, 30%, and seeds 1, 2, 3.
 - Real CSV export and averages, including the percentage of non-optimal Greedy paths.
 - A documented U-shaped Greedy trap with a deliberately worse Greedy path.
-- Python-native Streamlit + Matplotlib companion with grid editing, search playback, comparison and report charts.
-- Free Streamlit Community Cloud deployment with no extra API hosting.
+- A dedicated React tab for genuine Python Matplotlib and NumPy figures.
+- The Streamlit companion is distributed separately for Streamlit Community Cloud.
 
 **Scope:** Static, fully known, 2D grids. The 3D robot is decorative; the navigation environment is intentionally 2D. Optional eight-direction movement is not included in this version.
 
@@ -27,17 +27,16 @@ Two interfaces sharing the same from-scratch Python search code: a multi-page Re
 - Python 3.10+ (Python 3.12 recommended)
 - VS Code or another editor
 
-## Streamlit + Matplotlib (instructor-recommended hosting)
+## Python Visualizations (Matplotlib in the website)
 
-You can run and deploy a Python-native app **without FastAPI/Render**. From the repository root:
+The eighth website tab at /python-visualizations renders actual Python Matplotlib images served by FastAPI. It supports a single algorithm, side-by-side Matplotlib plots, explored cells, frontier, path animation steps, and four performance graphs with downloadable PNG files.
 
-~~~powershell
-py -m venv .streamlit-venv
-.\.streamlit-venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.streamlit-venv\Scripts\python.exe -m streamlit run streamlit_app.py
-~~~
+- backend/plotting.py converts Python search outputs into Matplotlib/NumPy PNG files.
+- POST /api/visualize generates a step-by-step 2D search image.
+- POST /api/visualize/experiments generates real performance charts.
+- src/pages/PythonVisualizations.tsx displays the PNGs and lets visitors control the experiment.
 
-Open http://localhost:8501. Deploy to Streamlit Community Cloud by choosing this repository, branch main, and the entrypoint `streamlit_app.py` (see docs/STREAMLIT_SETUP.md). React remains a separate, optional advanced frontend.
+Matplotlib is the selected visualization alternative explicitly named in the proposal. Pygame and Tkinter are alternatives for DESKTOP GUI applications, not additional compulsory libraries. The separate Streamlit app uses the same search code, but is a distinct project/repository.
 
 ## Running the React website on Windows
 
@@ -166,4 +165,4 @@ RoboNav/
 - Four-direction movement only.
 - Browser simulation uses a 2D grid, with a separate decorative 3D robot scene.
 - Large grids are tested primarily in non-animated experiment batches.
-- The backend requires a Python-capable host for public deployment.
+- The backend requires a Python-capable host for public deployment. The standalone Streamlit site is maintained separately.

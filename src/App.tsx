@@ -7,6 +7,7 @@ const Home = lazy(() => import('@/pages/Home'));
 const GridSimulator = lazy(() => import('@/pages/GridSimulator'));
 const AlgorithmComparison = lazy(() => import('@/pages/AlgorithmComparison'));
 const ExperimentLab = lazy(() => import('@/pages/ExperimentLab'));
+const PythonVisualizations = lazy(() => import('@/pages/PythonVisualizations'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 const About = lazy(() => import('@/pages/About'));
 const Documentation = lazy(() => import('@/pages/Documentation'));
@@ -31,6 +32,7 @@ export default function App() {
               <Route path="/simulator" element={<GridSimulator />} />
               <Route path="/comparison" element={<AlgorithmComparison />} />
               <Route path="/lab" element={<ExperimentLab />} />
+              <Route path="/python-visualizations" element={<PythonVisualizations />} />
               <Route path="/how-it-works" element={<HowItWorks />} />
               <Route path="/about" element={<About />} />
               <Route path="/docs" element={<Documentation />} />

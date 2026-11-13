@@ -7,6 +7,7 @@ const links = [
   { to: '/simulator', label: 'Grid Simulator' },
   { to: '/comparison', label: 'Algorithm Comparison' },
   { to: '/lab', label: 'Experiment Lab' },
+  { to: '/python-visualizations', label: 'Python Visualizations' },
   { to: '/how-it-works', label: 'How It Works' },
   { to: '/about', label: 'About & Team' },
   { to: '/docs', label: 'Documentation' },
