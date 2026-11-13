@@ -1,35 +1,12 @@
-name: RoboNav Checks
+name: RoboNav Streamlit Checks
 
 on:
   push:
-    branches: [main, full-website-python-integration, streamlit-proposal-completion]
+    branches: [main, streamlit-standalone-ready]
   pull_request:
 
 jobs:
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run lint
-      - run: npm run build
-
-  backend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - run: python -m pip install -r backend/requirements-dev.txt
-      - run: python -m unittest discover -s backend/tests -v
-
-  streamlit:
+  python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,5 +14,5 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
-      - run: python -m py_compile streamlit_app.py
+      - run: python -m unittest discover -s backend/tests -v
       - run: python scripts/check_streamlit.py

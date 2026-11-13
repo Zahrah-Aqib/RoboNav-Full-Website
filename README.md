@@ -1,169 +1,62 @@
-# RoboNav Full Website
+# RoboNav Streamlit | AI Lab Project
 
-**Robot Navigation in an Obstacle-Filled Environment: A Comparative Study of Greedy Best-First Search and A* Search**
+Robot Navigation in an Obstacle-Filled Environment: A Comparative Study of Greedy Best-First Search and A* Search
 
-Two interfaces sharing the same from-scratch Python search code: a multi-page React/TypeScript/Three.js website (FastAPI backend) AND a standalone Streamlit + NumPy + Matplotlib simulator. Both algorithms are implemented from basic search concepts. No pathfinding library, machine learning, Kaggle dataset, login system, or database is required.
+This is the standalone Python Streamlit + NumPy + Matplotlib project for free Streamlit Community Cloud hosting. The React/Three.js version is a separate project, Final RoboNav Website.
 
 ## Features
 
-- Home page with an animated 3D robot and seven navigable website pages.
-- Editable 2D grid: draw obstacles, set start/goal, choose a heuristic, generate random obstacles or select a preset map.
-- Greedy Best-First Search chooses the smallest f(n) = h(n).
-- A* chooses the smallest f(n) = g(n) + h(n), updates parent links and keeps the best discovered cost.
-- Both support Manhattan and Euclidean heuristics on four-direction grids with cost 1 per move.
-- The backend records actual explored nodes, frontier snapshots, the final path and performance metrics.
-- Side-by-side comparison always uses the same obstacle grid.
-- Experiment Lab tests 10x10, 20x20 and 50x50 grids, densities of 10%, 20%, 30%, and seeds 1, 2, 3.
-- Real CSV export and averages, including the percentage of non-optimal Greedy paths.
-- A documented U-shaped Greedy trap with a deliberately worse Greedy path.
-- Python-native Streamlit + Matplotlib companion with grid editing, search playback, comparison and report charts.
-- Free Streamlit Community Cloud deployment with no extra API hosting.
+- From-scratch Python 3 A* and Greedy Best-First Search, priority frontier (heapq), visited tracking, Manhattan/Euclidean heuristics.
+- Configurable 2D obstacle map, custom start/goal, random seed and obstacle density, JSON/ASCII input and manual obstacle editor.
+- Matplotlib step-by-step frontier, explored-node, route, and moving-robot visualizations.
+- Matched algorithm comparison and experiments at 10x10, 20x20, 50x50, densities 10%, 20%, 30%, several random seeds.
+- U-shaped Greedy trap and percentage of non-optimal Greedy routes.
+- Real CSV, PNG, and measured PDF experimental report downloads.
+- No Kaggle dataset, ML training, database, JavaScript build or separate API server.
 
-**Scope:** Static, fully known, 2D grids. The 3D robot is decorative; the navigation environment is intentionally 2D. Optional eight-direction movement is not included in this version.
+## Windows setup
 
-## Requirements
+Open PowerShell in the project root:
 
-- Node.js 22.12+ (or a supported newer release)
-- Python 3.10+ (Python 3.12 recommended)
-- VS Code or another editor
+    py -3.12 -m venv .venv
+    .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+    .\.venv\Scripts\python.exe -m streamlit run streamlit_app.py
 
-## Streamlit + Matplotlib (instructor-recommended hosting)
+Open http://localhost:8501.
 
-You can run and deploy a Python-native app **without FastAPI/Render**. From the repository root:
+## Free Streamlit deployment
 
-~~~powershell
-py -m venv .streamlit-venv
-.\.streamlit-venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.streamlit-venv\Scripts\python.exe -m streamlit run streamlit_app.py
-~~~
+1. Create a GitHub repository named RoboNav-Streamlit and push this project to its main branch.
+2. Sign in at https://share.streamlit.io with GitHub.
+3. Choose Create app, your RoboNav-Streamlit repository, branch main.
+4. Set main file path to streamlit_app.py.
+5. Use Python 3.12 if offered, then deploy.
+6. Use the resulting public Streamlit app link in the final submission.
 
-Open http://localhost:8501. Deploy to Streamlit Community Cloud by choosing this repository, branch main, and the entrypoint `streamlit_app.py` (see docs/STREAMLIT_SETUP.md). React remains a separate, optional advanced frontend.
+## Project files
 
-## Running the React website on Windows
-
-Use TWO terminals in VS Code.
-
-### Terminal 1: Python backend
-
-Open a terminal in the project root, then run:
-
-~~~powershell
-cd backend
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m uvicorn main:app --reload --port 8000
-~~~
-
-Check the API: http://127.0.0.1:8000/api/health  
-API documentation: http://127.0.0.1:8000/docs
-
-### Terminal 2: React frontend
-
-Open a NEW terminal at the project root (not inside backend):
-
-~~~powershell
-npm.cmd install
-npm.cmd run dev
-~~~
-
-Open: http://localhost:5173
-
-The frontend defaults to http://127.0.0.1:8000. For a deployed Python service, create a .env.local file with:
-
-~~~env
-VITE_API_URL=https://your-python-host.example.com
-~~~
-
-Set the backend environment variable ROBONAV_ALLOWED_ORIGINS to your frontend's deployed URL.
-
-## Testing
-
-From the project root:
-
-~~~powershell
-npm.cmd run typecheck
-npm.cmd run lint
-npm.cmd run build
-cd backend
-python -m pip install -r requirements-dev.txt
-python -m unittest discover -s tests -v
-~~~
-
-The Python tests include HTTP API endpoint checks, plus shortest paths on open maps, detours, no-path maps, frontier snapshots, same start/goal, invalid inputs, repeatable seeds and paired experiments.
-
-## Proposal-specific experiments
-
-Use the U-shaped preset to show where Greedy makes a longer choice despite the admissible Manhattan heuristic. The Experiment Lab now reports non-optimal Greedy percentage using only identical maps solved by both algorithms. Both the React and Streamlit interfaces call backend/experiments.py. The Streamlit Experiment Lab can now download a measured experimental report PDF generated with ReportLab. Review this report, include original screenshots, discuss key cases, and add the live Streamlit link before submitting.
-
-## API endpoints
-
-- GET /api/health: health check
-- POST /api/run: run either search on one grid
-- POST /api/compare: compare both searches on the identical grid
-- POST /api/experiments: repeatable batches, with individual rows and grouped averages
-
-Example request for POST /api/run:
-
-~~~json
-{
-  "map": {
-    "rows": 5,
-    "cols": 5,
-    "obstacles": [7, 12, 17],
-    "start": {"row": 2, "col": 0},
-    "goal": {"row": 2, "col": 4}
-  },
-  "algorithm": "astar",
-  "heuristic": "manhattan",
-  "movement": "4dir"
-}
-~~~
-
-An obstacle index equals row * number_of_columns + column. The response contains exploration frames, a live frontier with g(n), h(n), f(n) values, the final path, status, and measured statistics.
-
-Nodes tested includes the selected goal; nodes expanded excludes that goal because its neighbours are not expanded. Maximum frontier counts unique waiting states (not stale queue entries). Execution time excludes browser animation. Batch experiments turn off detailed frame recording.
-
-## Relation to the lab material
-
-The Lab 5 solution keeps a frontier, chooses the smallest evaluation value, checks visited states, expands neighbours and prints the route. The website follows the SAME decisions. The adaptation is from letter-named graph nodes to row/column grid cells. Python's standard heapq is used as a priority queue, as specified by the submitted project proposal.
-
-A* is shortest-path optimal for this four-direction uniform-cost grid under the supported heuristics. Greedy does not guarantee the shortest path. Failure is reported when no path exists.
-
-## Team
-
-- Humna Ilyas: A* and heuristic functions
-- Daniya Afzal: Greedy search and grid generator
-- Zahrah Aqib: visualization, experiments, tests, documentation and presentation
-
-Every member should review and understand the code for the viva.
-
-## Code structure
-
-~~~text
-RoboNav/
-  streamlit_app.py             # Python-native visualization
-  requirements.txt             # Streamlit Community Cloud
-  backend/
-    algorithms/
-      search.py
-    experiments.py
-    main.py
+    streamlit_app.py
     requirements.txt
-    tests/
-  src/
-    components/
-    lib/
-    pages/
-  sample_maps/
-  docs/
-  package.json
-  README.md
-~~~
+    .streamlit/config.toml
+    backend/algorithms/search.py
+    backend/algorithms/maps.py
+    backend/experiments.py
+    backend/report.py
+    backend/tests/
+    sample_maps/
+    scripts/check_streamlit.py
+    docs/
+    README.md
 
-## Limitations
+## Tests
 
-- Static obstacle maps only; no real robot hardware or sensors.
-- Four-direction movement only.
-- Browser simulation uses a 2D grid, with a separate decorative 3D robot scene.
-- Large grids are tested primarily in non-animated experiment batches.
-- The backend requires a Python-capable host for public deployment.
+    .\.venv\Scripts\python.exe -m unittest discover -s backend/tests -v
+    .\.venv\Scripts\python.exe scripts/check_streamlit.py
+
+## Proposal and limitations
+
+The submitted proposal names Python 3, a 2D static grid, Greedy and A* implemented from scratch, a priority-queue frontier, Manhattan and Euclidean heuristics, graphical search tracing and measured experiments. It proposes Matplotlib/Pygame/Tkinter as alternative Python visualization libraries; this project uses Matplotlib.
+
+Navigation allows four-direction movements costing 1 per step. Eight-direction movement is optional in the proposal and is not implemented. Execution time excludes plotting. The final report PDF should be reviewed and supplemented with the team's interpretation, working app screenshots, live URL, and a demonstration video if requested.
+
+See docs/STREAMLIT_SETUP.md and docs/VIVA_GUIDE.md.
